@@ -1,120 +1,119 @@
 package caddyanubis
 
 import (
-	"fmt"
-	"io"
+	"log/slog"
 	"net/http"
-	"os"
 
 	"github.com/TecharoHQ/anubis"
 	libanubis "github.com/TecharoHQ/anubis/lib"
+	"github.com/TecharoHQ/anubis/lib/policy"
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
+	"go.uber.org/zap"
 )
 
 func init() {
-	caddy.RegisterModule(Middleware{})
+	caddy.RegisterModule(AnubisMiddleware{})
 	httpcaddyfile.RegisterHandlerDirective("anubis", parseCaddyfile)
+	httpcaddyfile.RegisterDirectiveOrder("anubis", httpcaddyfile.After, "templates")
 }
 
-// Middleware implements an HTTP handler that writes the
-// visitor's IP address to a file or stream.
-type Middleware struct {
-	// The file or stream to write to. Can be "stdout"
-	// or "stderr".
-	Output string `json:"output,omitempty"`
+type AnubisMiddleware struct {
+	Target       *string `json:"target,omitempty"`
+	AnubisPolicy *policy.ParsedConfig
+	AnubisServer *libanubis.Server
+	Next         caddyhttp.Handler
 
-	w io.Writer
+	logger *zap.Logger
 }
 
 // CaddyModule returns the Caddy module information.
-func (Middleware) CaddyModule() caddy.ModuleInfo {
+func (AnubisMiddleware) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
 		ID:  "http.handlers.anubis",
-		New: func() caddy.Module { return new(Middleware) },
+		New: func() caddy.Module { return new(AnubisMiddleware) },
 	}
 }
 
 // Provision implements caddy.Provisioner.
-func (m *Middleware) Provision(ctx caddy.Context) error {
-	switch m.Output {
-	case "stdout":
-		m.w = os.Stdout
-	case "stderr":
-		m.w = os.Stderr
-	default:
-		return fmt.Errorf("an output stream is required")
-	}
-	return nil
-}
-
-// Validate implements caddy.Validator.
-func (m *Middleware) Validate() error {
-	if m.w == nil {
-		return fmt.Errorf("no writer")
-	}
-	return nil
-}
-
-// ServeHTTP implements caddyhttp.MiddlewareHandler.
-func (m Middleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
-	m.w.Write([]byte(r.RemoteAddr))
+func (m *AnubisMiddleware) Provision(ctx caddy.Context) error {
+	m.logger = ctx.Logger().Named("anubis")
+	m.logger.Info("Anubis middleware provisioning")
 
 	policy, err := libanubis.LoadPoliciesOrDefault("", anubis.DefaultDifficulty)
 	if err != nil {
 		return err
 	}
 
-	errChan := make(chan error)
-	anubisServer, err := libanubis.New(libanubis.Options{
+	m.AnubisPolicy = policy
+
+	m.AnubisServer, err = libanubis.New(libanubis.Options{
 		Next: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			errChan <- next.ServeHTTP(w, r)
+			m.logger.Info("Anubis middleware calling next")
+
+			if m.Target != nil {
+				http.Redirect(w, r, *m.Target, http.StatusTemporaryRedirect)
+			} else {
+				m.Next.ServeHTTP(w, r)
+			}
 		}),
-		Policy:         policy,
+		Policy:         m.AnubisPolicy,
 		ServeRobotsTXT: true,
 	})
-
 	if err != nil {
 		return err
 	}
 
-	anubisServer.ServeHTTP(w, r)
+	m.logger.Info("Anubis middleware provisioned")
+	return nil
+}
 
-	for err := range errChan {
-		if err != nil {
-			return err
-		}
-	}
+// Validate implements caddy.Validator.
+func (m *AnubisMiddleware) Validate() error {
+	return nil
+}
+
+// ServeHTTP implements caddyhttp.MiddlewareHandler.
+func (m *AnubisMiddleware) ServeHTTP(w http.ResponseWriter, r *http.Request, next caddyhttp.Handler) error {
+	m.logger.Info("Anubis middleware processing request")
+	slog.SetLogLoggerLevel(slog.LevelDebug)
+	m.logger.Info("Anubis middleware sending request")
+	m.Next = next
+	m.AnubisServer.ServeHTTP(w, r)
 	return nil
 }
 
 // UnmarshalCaddyfile implements caddyfile.Unmarshaler.
-func (m *Middleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
+func (m *AnubisMiddleware) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	d.Next() // consume directive name
 
 	// require an argument
-	if !d.NextArg() {
-		return d.ArgErr()
+	for nesting := d.Nesting(); d.NextBlock(nesting); {
+		switch d.Val() {
+		case "target":
+			if d.NextArg() {
+				val := d.Val()
+				m.Target = &val
+			}
+		}
 	}
 
-	// store the argument
-	m.Output = d.Val()
 	return nil
 }
 
 // parseCaddyfile unmarshals tokens from h into a new Middleware.
 func parseCaddyfile(h httpcaddyfile.Helper) (caddyhttp.MiddlewareHandler, error) {
-	var m Middleware
+	var m AnubisMiddleware
 	err := m.UnmarshalCaddyfile(h.Dispenser)
-	return m, err
+	return &m, err
 }
 
 // Interface guards
 var (
-	_ caddy.Provisioner           = (*Middleware)(nil)
-	_ caddy.Validator             = (*Middleware)(nil)
-	_ caddyhttp.MiddlewareHandler = (*Middleware)(nil)
-	_ caddyfile.Unmarshaler       = (*Middleware)(nil)
+	_ caddy.Provisioner           = (*AnubisMiddleware)(nil)
+	_ caddy.Validator             = (*AnubisMiddleware)(nil)
+	_ caddyhttp.MiddlewareHandler = (*AnubisMiddleware)(nil)
+	_ caddyfile.Unmarshaler       = (*AnubisMiddleware)(nil)
 )

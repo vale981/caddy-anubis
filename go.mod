@@ -2,9 +2,18 @@ module github.com/daegalus/caddy-anubis
 
 go 1.24.1
 
-replace github.com/TecharoHQ/anubis => ../anubis
+require (
+	github.com/caddyserver/caddy/v2 v2.9.1
+	github.com/TecharoHQ/anubis v1.14.3-0.20250322224449-6156d3d7293a
+)
 
-require github.com/caddyserver/caddy/v2 v2.9.1
+require (
+	github.com/a-h/templ v0.3.833 // indirect
+	github.com/golang-jwt/jwt/v5 v5.2.2 // indirect
+	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/sebest/xff v0.0.0-20210106013422-671bd2870b3a // indirect
+	github.com/yl2chen/cidranger v1.0.2 // indirect
+)
 
 require (
 	dario.cat/mergo v1.0.1 // indirect
@@ -14,7 +23,6 @@ require (
 	github.com/Masterminds/semver/v3 v3.3.0 // indirect
 	github.com/Masterminds/sprig/v3 v3.3.0 // indirect
 	github.com/Microsoft/go-winio v0.6.0 // indirect
-	github.com/TecharoHQ/anubis v1.14.2
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
 	github.com/aryann/difflib v0.0.0-20210328193216-ff5ff6dc229b // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
