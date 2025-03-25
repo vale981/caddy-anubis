@@ -1,7 +1,7 @@
 
 {
-	order anubis after encode
-	order redir after anubis
+	#order anubis after encode
+	#order redir after anubis
 }
 
 :18888 {
