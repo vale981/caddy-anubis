@@ -1,4 +1,4 @@
-module github.com/vale981/caddy-anubis/v2 1.0.0
+module github.com/vale981/caddy-anubis 1.0.0
 
 go 1.24.2
 
