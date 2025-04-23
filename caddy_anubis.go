@@ -6,7 +6,7 @@ import (
 
 	"github.com/vale981/anubis"
 	libanubis "github.com/vale981/anubis/lib"
-	"github.com/TecharoHQ/anubis/lib/policy"
+	"github.com/vale981/anubis/lib/policy"
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
 	"github.com/caddyserver/caddy/v2/caddyconfig/httpcaddyfile"
