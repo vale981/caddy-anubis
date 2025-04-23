@@ -1,9 +1,9 @@
-module github.com/vale981/caddy-anubis 1.0.0
+module github.com/vale981/caddy-anubis
 
 go 1.24.2
 
 require (
-	github.com/TecharoHQ/anubis@main
+	github.com/TecharoHQ/anubis v1.16.1-0.20250423120753-cfbe16f2d003
 	github.com/caddyserver/caddy/v2 v2.10.0
 	go.uber.org/zap v1.27.0
 )
@@ -137,4 +137,7 @@ require (
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	howett.net/plist v1.0.1 // indirect
+	k8s.io/apimachinery v0.32.4 // indirect
+	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
+	sigs.k8s.io/yaml v1.4.0 // indirect
 )
